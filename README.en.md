@@ -10,6 +10,9 @@ Inspired by [2233admin/qqcli-rs](https://github.com/2233admin/qqcli-rs) (Windows
 
 ## Scope and prerequisites
 
+> **For reading your own QQ data, on your own device, for your own account only** — never anyone
+> else's. See the Disclaimer at the end.
+
 **macOS only** (QQ NT desktop). No cross-platform support — key extraction relies on macOS
 lldb and the SIP debug switch, neither of which exists on Windows.
 
@@ -192,6 +195,22 @@ No output means it passed (the script lists anything suspicious).
 - `find_key_func.py` / `precise_locate.py`: statically locate `nt_sqlite3_key_v2`
 - `getkey_helper.py` + lldb spawn: capture the key automatically
 - `kdf_hook.py`: breakpoint on `PKCS5_PBKDF2_HMAC` to capture the actual SQLCipher passphrase
+
+## Disclaimer
+
+- **Your own device and your own account only.** This tool reads **your own** QQ chat history from
+  **your own** machine. Do not use it to obtain, monitor or analyze anyone else's data.
+- **Unofficial.** Not affiliated with, authorized by, or endorsed by Tencent. QQ and related marks
+  belong to Tencent.
+- **You are responsible for compliance.** Use must comply with your local laws and QQ's terms of
+  service. Do not use exported chat history to invade privacy, harass, defame or profit. Other
+  people's messages are protected by privacy law (e.g. PIPL in China) — redistribute with care.
+- **Disabling SIP has a security cost.** Key extraction requires temporarily disabling the macOS SIP
+  debug restriction; your machine is less protected during that window. Do it in a trusted
+  environment and re-enable it afterwards.
+- **Nothing leaves your machine.** All processing is local — no uploads, no telemetry. Exported
+  files are your responsibility to store.
+- **Provided as is.** Released under MIT with no warranty of any kind; you bear the consequences of use.
 
 ## License
 

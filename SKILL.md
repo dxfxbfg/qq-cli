@@ -131,6 +131,8 @@ python3 -c "import qqcli.segment as S; print(S.render_inline(bytes.fromhex('...'
 
 ## 维护与隐私
 
+- **使用边界**：仅用于读取用户**本人**设备上**本人**账号的数据，不得用于他人数据；详见仓库
+  README 的「免责声明」（非官方、合规责任在用户、关闭 SIP 有安全代价）。
 - 回归测试（仓库根目录）：`./tests/run_tests.sh`（单元 + 对真实库的集成）
 - 隐私：查询结果仅向用户本人展示；导出文件含隐私，放用户指定位置
 - 密钥：`$HOME/.qqmac/config.json` 与仓库 `passphrase.txt` / `db_key.txt`
