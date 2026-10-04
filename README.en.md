@@ -8,7 +8,8 @@ as a skill installed into an AI agent's skill directory. On Windows there is a m
 [2233admin/qqcli-rs](https://github.com/2233admin/qqcli-rs); this repo is the macOS port in Python.
 
 It only touches the data of the person running it, on their own machine and their own account.
-See the disclaimer at the end.
+Queries read local files only — no network, no login takeover, no effect on normal QQ use. See the
+disclaimer at the end.
 
 ## Requirements
 
@@ -31,6 +32,21 @@ group-id field IDs have not changed across NT versions. The SQLCipher parameters
 kdf_iter / HMAC) have stayed the same for a long time and the defaults work as-is; if a future
 version changes them, capture the values with `kdf_hook.py` and write them into the `cipher` field
 of `config.json`. No code change needed.
+
+## How this differs from other tools
+
+Frameworks like NapCat take the bot route: they run a separate QQ account, usually headless, and
+that account carries the login conflicts, risk-control and ban risk. This project does the opposite.
+It takes over no login and never talks to QQ's servers.
+
+During queries it does one thing: read the plain database copy on disk. Connections are read-only
+(`mode=ro`), there is no network request anywhere in the code, and the only external call is the
+local `sqlcipher` command. QQ keeps logging in, sending and receiving as usual, and no extra account
+is needed.
+
+The one step that does touch the QQ process is the initial key extraction: it quits QQ and
+relaunches it under lldb to capture the passphrase. That happens once, and afterwards queries do not
+need QQ running at all.
 
 ## Demo
 
