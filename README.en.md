@@ -1,47 +1,41 @@
-# qq-cli — Local QQ Chat History Reader for macOS (Agent Skill / CLI)
+# qq-cli
 
-[简体中文](README.md) · **English**
+[简体中文](README.md) · English
 
-Local QQ data access built for **AI agents**: read the local database of QQ NT for macOS
-(`nt_qq_<hash>/nt_db/nt_msg.db`, SQLCipher), decrypt it into plain SQLite, then search,
-summarize and export chat history. Usable directly as an agent skill, or as an ordinary CLI.
+Reads the local chat database of QQ NT on macOS (`nt_qq_<hash>/nt_db/nt_msg.db`, SQLCipher),
+decrypts it into plain SQLite, then searches, summarizes and exports. Runs as an ordinary CLI or
+as a skill installed into an AI agent's skill directory. On Windows there is a more complete
+[2233admin/qqcli-rs](https://github.com/2233admin/qqcli-rs); this repo is the macOS port in Python.
 
-Inspired by [2233admin/qqcli-rs](https://github.com/2233admin/qqcli-rs) (Windows); this repo is the macOS/Python port.
+It only touches the data of the person running it, on their own machine and their own account.
+See the disclaimer at the end.
 
-## Scope and prerequisites
+## Requirements
 
-> **For reading your own QQ data, on your own device, for your own account only** — never anyone
-> else's. See the Disclaimer at the end.
+macOS and QQ NT desktop only — no cross-platform support. Key extraction relies on macOS lldb and
+the SIP debug switch, so Windows is out of scope.
 
-**macOS only** (QQ NT desktop). No cross-platform support — key extraction relies on macOS
-lldb and the SIP debug switch, neither of which exists on Windows.
+You need sqlcipher installed (`brew install sqlcipher`), QQ NT logged in and run at least once,
+and Python 3.9 or newer. There are no third-party dependencies.
 
-**Not tied to a specific QQ version:**
+Extracting the key requires temporarily turning off the macOS SIP debug restriction
+(Debugging Restrictions). The step sets lldb breakpoints inside the QQ process, which SIP refuses.
+Boot into Recovery (hold the power button on Apple Silicon, ⌘R on Intel) and run
+`csrutil enable --without debug` to lift only the debug restriction while leaving the rest of SIP
+in place, or `csrutil disable`. You can turn it back on afterwards. Once the key is captured and
+the plain database is exported, day-to-day queries need neither SIP disabled nor lldb running.
 
-- Message bodies are parsed with an order-preserving protobuf scan, not version-specific element field numbers
-- Field IDs (timestamp / sender / group id) have been stable across NT versions
-- SQLCipher parameters (page_size / kdf_iter / HMAC) are long-standing defaults; if a future
-  version changes them, capture them with `kdf_hook.py` and write them into `config.json`
-  under `cipher` — no code change needed
-
-**Prerequisites:**
-
-1. macOS (Apple Silicon or Intel), QQ NT desktop installed and logged in at least once
-2. `brew install sqlcipher`
-3. **Extracting the key requires temporarily disabling the macOS SIP debug restriction** —
-   key capture sets lldb breakpoints inside the QQ process, which SIP blocks. Boot into
-   Recovery (hold the power button on Apple Silicon; ⌘R on Intel) and run
-   `csrutil enable --without debug` (keeps the rest of SIP intact) or `csrutil disable`.
-   You can turn it back on afterwards.
-4. Python 3.9+ (zero third-party dependencies)
-
-> Once the key is captured and the plain database is exported, day-to-day queries no longer
-> need SIP disabled or lldb running.
+The tool is not tied to a QQ version. Message bodies are parsed with an order-preserving protobuf
+scan that does not depend on version-specific element field numbers, and the timestamp / sender /
+group-id field IDs have not changed across NT versions. The SQLCipher parameters (page_size /
+kdf_iter / HMAC) have stayed the same for a long time and the defaults work as-is; if a future
+version changes them, capture the values with `kdf_hook.py` and write them into the `cipher` field
+of `config.json`. No code change needed.
 
 ## Demo
 
-The output below comes from **synthetic data** (the group and people shown are made up —
-no real chat records):
+The output below comes from synthetic data. The group and the names in it are made up, not real
+chat records.
 
 ```console
 $ qq sessions -n 5
@@ -65,47 +59,46 @@ $ qq search 分享会
 共 1 条
 ```
 
-The CLI output itself is Chinese (it targets Chinese QQ users), so the block above is verbatim.
-Column legend for the first table: `类型` = type (`私` c2c / `群` group), `条数` = message count,
-`最后消息` = last message time, `预览` = preview. In `history`/`search`, `我` means "me" and
-`[图片]` is the placeholder for an image message.
+The CLI output is Chinese because it targets Chinese QQ users, so the block above is verbatim.
+In the first table, `类型` is the type (`私` for c2c, `群` for group), `条数` the message count,
+`最后消息` the last message time and `预览` a preview. In `history` and `search`, `我` means "me"
+and `[图片]` stands for an image message.
 
-## Install and entry points
+## Install
 
-- Entry point: `~/.local/bin/qq` (symlink → `~/.agents/bin/qq` → `python -m qqcli`)
-- The repo root is the Python package root: `qqcli/` is the package, `tests/` the regression suite
-- Zero third-party dependencies (standard library + the `sqlcipher` CLI)
-
-Recommended: install with pip so `pyproject.toml` generates the `qq` command (no manual PYTHONPATH):
+Installing with pip is recommended: `pyproject.toml` generates the `qq` command, so there is no
+PYTHONPATH to configure.
 
 ```bash
 pip install -e .        # or: pipx install .
 qq version
 ```
 
-Or run without installing:
+Running without installing also works:
 
 ```bash
 QQ="$HOME/.local/bin/qq"                 # symlink -> python -m qqcli
-PYTHONPATH=. python3 -m qqcli sessions   # run the package straight from the repo root
+PYTHONPATH=. python3 -m qqcli sessions   # run from the repo root
 ```
 
-> Note: `~/.local/bin` is often missing from a session's PATH — use `~/.local/bin/qq` or an absolute path in scripts.
+The repo root is the Python package root: `qqcli/` is the package, `tests/` the regression suite.
+`~/.local/bin` is often missing from a session's PATH, so scripts should use `~/.local/bin/qq` or
+an absolute path.
 
-## Using it as an agent skill
+## As an agent skill
 
-This repo directory **is** a valid agent skill directory — the `SKILL.md` at its root is the
-skill description (command reference, field semantics, SQL snippets, pitfalls), written entirely
-with `$HOME`/relative paths and containing no machine-specific information.
+This repo directory is itself a valid skill directory. The `SKILL.md` at its root holds the command
+reference, field semantics, SQL snippets and pitfalls, written entirely with `$HOME` and relative
+paths, with no machine-specific information.
 
-- To make an agent pick it up, place this directory (or a symlink to it) under a skill directory,
-  e.g. `~/.workbuddy/skills/qq-cli` or `~/.claude/skills/qq-cli`
-- To share only the documentation, distributing `SKILL.md` alone works too
+To make an agent pick it up, put this directory (or a symlink to it) under a skill directory such as
+`~/.workbuddy/skills/qq-cli` or `~/.claude/skills/qq-cli`. To share only the documentation,
+`SKILL.md` on its own is enough.
 
 ## Commands
 
 ```bash
-qq sync                            # re-decrypt and export the plain databases (works while QQ is running)
+qq sync                            # re-decrypt and export the plain databases (works while QQ runs)
 qq init                            # discover account dirs, show database status
 qq sessions [-n 20] [--kind group|c2c|all]         # session list
 qq history <target> [-n N] [--offset N] [--since D] [--until D] [--msg-type T]
@@ -119,19 +112,19 @@ qq doctor                          # environment diagnostics
 qq version
 ```
 
-`--json` (global) emits machine-readable output. `<target>` accepts a group id, a QQ number,
-a uid (`u_` prefix), or a fuzzy name match.
+`--json` is global and switches the output to machine-readable form. `<target>` accepts a group id,
+a QQ number, a uid (`u_` prefix), or part of a name.
 
-### Exit codes (agent contract)
+There are four exit codes, which agents can branch on:
 
 | Code | Meaning |
 |------|---------|
 | 0 | Success |
-| 1 | General error (bad arguments / unresolvable target / bad date format) |
+| 1 | General error (bad arguments, unresolvable target, bad date format) |
 | 2 | Authorization required (decryption) |
 | 3 | Environment not ready (plain database missing — run `qq sync` first) |
 
-## Architecture
+## Code structure
 
 ```
 qqcli/
@@ -145,52 +138,61 @@ qqcli/
   cli.py        argparse subcommands + --json + exit codes
 ```
 
-Layering rule: `db` yields data classes only, `formatting` handles presentation only,
-`segment` handles parsing only — no crossing.
+The layering is fairly strict: `db` yields data classes only, `formatting` handles presentation
+only, `segment` handles parsing only, and none of them reach into each other.
 
-## Column semantics (`nt_msg.db` field IDs, stable across NT versions)
+## Field semantics
+
+nt_msg.db uses numeric column names. These are the important ones, and the IDs are stable across
+NT versions.
 
 | Column | Meaning |
 |--------|---------|
 | `[40050]` | Unix timestamp (seconds) |
-| `[40020]` | Sender uid — **this is how "is it me" is determined** (== self_uid) |
-| `[40090]` | Sender's group card (empty for ~40% of group messages; falls back to `group_member3`) |
-| `[40021]` | Group id in the group table; peer uid in the c2c table |
-| `[40030]` | Group id (group table) / peer QQ number (c2c table) |
-| `[40009]` | A constant flag, **not** "sent by me" — do not use it to infer direction |
+| `[40020]` | Sender uid — this is what "is it me" is based on (compared against self_uid) |
+| `[40090]` | Sender's group card; empty for roughly 40% of group messages, falls back to `group_member3` |
+| `[40021]` | Group id in the group table, peer uid in the c2c table |
+| `[40030]` | Group id (group table) or peer QQ number (c2c table) |
+| `[40009]` | A constant flag, unrelated to who sent the message — do not use it for direction |
 | `[40800]` | Message body protobuf blob |
 
-> The plain database contains leftover `[40050]=0` placeholder rows from decryption;
-> all queries filter them out automatically.
+The plain database contains leftover `[40050]=0` placeholder rows from decryption; queries filter
+them out already.
 
 ## Tests
 
 ```bash
-./tests/run_tests.sh          # unit + integration (integration runs automatically when a real DB exists)
+./tests/run_tests.sh          # unit + integration (integration runs when a real DB exists)
 ```
 
-- Unit: protobuf segmentation, noise/rich-text handling, name resolution, layout alignment, query layer (temp fixture DBs)
-- Integration: every subcommand against the real plain database — exit codes, JSON contract, no 1970 junk rows
+The unit tests cover protobuf segmentation, noise and rich-text handling, name resolution, layout
+alignment and the query layer, using temporary fixture databases. The integration tests run every
+subcommand against the real plain database and check exit codes, the JSON contract, and that no
+1970 junk rows show up in the output.
 
 ## Keys and privacy
 
-- **passphrase / db_key stay local and are never committed**: `~/.qqmac/config.json`,
-  `passphrase.txt` and `db_key.txt` are all covered by `.gitignore`. First use requires running
-  `extract_key.sh` on your own machine — this repo ships no keys.
-- Read-only local access; exported files contain private data, so put them where you choose
-- If the key breaks or you switch QQ versions → re-run `extract_key.sh` (needs lldb and the SIP debug restriction off, see Prerequisites)
+The passphrase and db_key stay on the local machine and are never committed. `~/.qqmac/config.json`,
+`passphrase.txt` and `db_key.txt` are all listed in `.gitignore`. First use requires running
+`extract_key.sh` locally; the repo ships no keys.
+
+The tool reads local data only. Exported files contain private information, so store them where you
+choose. If the key breaks or you switch QQ versions, re-run `extract_key.sh` — again with lldb and
+the SIP debug restriction off.
 
 ## Pre-publish check
 
-Run the safety check before committing or publishing, to confirm no personal paths or keys got included:
+Run this before committing or publishing to confirm no personal paths or keys slipped in:
 
 ```bash
 ./scripts/check_publish_safe.sh
 ```
 
-No output means it passed (the script lists anything suspicious).
+No output means it passed; otherwise the script lists everything suspicious.
 
-## Key extraction chain (one-time)
+## Key extraction
+
+Three scripts work together, for a one-time run:
 
 - `find_key_func.py` / `precise_locate.py`: statically locate `nt_sqlite3_key_v2`
 - `getkey_helper.py` + lldb spawn: capture the key automatically
@@ -198,19 +200,22 @@ No output means it passed (the script lists anything suspicious).
 
 ## Disclaimer
 
-- **Your own device and your own account only.** This tool reads **your own** QQ chat history from
-  **your own** machine. Do not use it to obtain, monitor or analyze anyone else's data.
-- **Unofficial.** Not affiliated with, authorized by, or endorsed by Tencent. QQ and related marks
-  belong to Tencent.
-- **You are responsible for compliance.** Use must comply with your local laws and QQ's terms of
-  service. Do not use exported chat history to invade privacy, harass, defame or profit. Other
-  people's messages are protected by privacy law (e.g. PIPL in China) — redistribute with care.
-- **Disabling SIP has a security cost.** Key extraction requires temporarily disabling the macOS SIP
-  debug restriction; your machine is less protected during that window. Do it in a trusted
-  environment and re-enable it afterwards.
-- **Nothing leaves your machine.** All processing is local — no uploads, no telemetry. Exported
-  files are your responsibility to store.
-- **Provided as is.** Released under MIT with no warranty of any kind; you bear the consequences of use.
+This tool is for reading the QQ chat history of the person running it, on their own device and their
+own account. It must not be used to obtain, monitor or analyze anyone else's data.
+
+This is an unofficial project. It is not affiliated with or endorsed by Tencent, and QQ and related
+marks belong to Tencent.
+
+Use must comply with local law and QQ's terms of service. Exported chat history contains other
+people's private information and is subject to privacy law; confirm legality before forwarding or
+publishing it. Any compliance or legal consequences of use rest with the user.
+
+Key extraction requires temporarily disabling the macOS SIP debug restriction, which lowers system
+protection during that window — do it in a trusted environment and re-enable it afterwards. All
+processing happens locally with no uploads and no telemetry; exported files are the user's to keep
+safe.
+
+The software is provided as is under the MIT license, with no warranty of any kind.
 
 ## License
 

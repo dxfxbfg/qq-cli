@@ -1,42 +1,35 @@
-# qq-cli — macOS 本机 QQ 记录读取（Agent 技能 / CLI）
+# qq-cli
 
-**简体中文** · [English](README.en.md)
+简体中文 · [English](README.en.md)
 
-给 **AI Agent** 用的本机 QQ 信息获取能力：读取 macOS 版 QQ NT 的本地数据库
-（`nt_qq_<hash>/nt_db/nt_msg.db`，SQLCipher），解密为明文 SQLite 后即可搜索、
-统计、导出聊天记录。可作为 agent skill 直接调用，也能当普通 CLI 用。
+读取 macOS 版 QQ NT 的本地聊天数据库（`nt_qq_<hash>/nt_db/nt_msg.db`，SQLCipher），
+解密成明文 SQLite 后做搜索、统计和导出。既能当普通命令行工具用，也能装进 AI Agent 的
+技能目录。Windows 上有功能更全的 [2233admin/qqcli-rs](https://github.com/2233admin/qqcli-rs)，
+这里是 macOS 的 Python 实现。
 
-对标 [2233admin/qqcli-rs](https://github.com/2233admin/qqcli-rs)（Windows），本仓库是 macOS/Python 适配。
+本项目只处理使用者本人设备上、本人账号的数据，详见文末免责声明。
 
-## 定位与前提
+## 使用前提
 
-> **仅用于读取你自己设备上、你自己账号的 QQ 数据**；请勿用于他人数据。详见文末「免责声明」。
+只支持 macOS 和 QQ NT 桌面版，不做跨平台适配。抓密钥要靠 macOS 的 lldb 和 SIP 调试开关，
+Windows 上走不通。
 
-**仅支持 macOS**（QQ NT 桌面版）。不做跨平台适配——抓密钥依赖 macOS 的 lldb 与
-SIP 调试开关，Windows 走不通。
+需要先装好 sqlcipher（`brew install sqlcipher`），QQ NT 至少登录运行过一次，Python 3.9 以上，
+没有第三方依赖。
 
-**不限制 QQ 版本**：
+抓密钥的步骤要临时关掉 macOS SIP 的调试保护（Debugging Restrictions）。原理是对 QQ 进程下
+lldb 断点，SIP 开着会被系统拒绝。恢复模式（Apple Silicon 长按电源键，Intel 按 ⌘R）里执行
+`csrutil enable --without debug`，这样只放开调试、其余保护还在；也可以直接 `csrutil disable`。
+抓完可以再开回来。密钥解出、明文库导出之后，日常查询既不需要关 SIP，也不用再跑 lldb。
 
-- 正文解析走 protobuf 保序扫描，不依赖版本相关的元素字段号
-- 时间戳 / 发送者 / 群号等字段 ID 跨 NT 版本长期稳定
-- SQLCipher 参数（page_size / kdf_iter / HMAC）QQ NT 长期不变，默认值即可用；
-  若某版本改动，用 `kdf_hook.py` 抓取后写回 `config.json` 的 `cipher`，无需改代码
-
-**前置条件**：
-
-1. macOS（Apple Silicon / Intel 均可），已安装 QQ NT 桌面版并至少登录运行过一次
-2. `brew install sqlcipher`
-3. **提取密钥需临时关闭 macOS SIP 的调试保护（Debugging Restrictions）**——抓密钥靠 lldb
-   对 QQ 进程下断点，SIP 开着会被拒绝。恢复模式（Apple Silicon 长按电源键；Intel 按 ⌘R）
-   执行 `csrutil enable --without debug`（保留其余 SIP 保护），或 `csrutil disable`；
-   提取完成可再开回。
-4. Python 3.9+（零第三方依赖）
-
-> 密钥解出、明文库导出之后，日常查询不再需要关闭 SIP 或跑 lldb。
+不绑定 QQ 版本。正文按 protobuf 保序扫描，不依赖版本相关的元素字段号；时间戳、发送者、群号
+这些字段 ID 跨 NT 版本一直没有变动。SQLCipher 参数（page_size / kdf_iter / HMAC）QQ NT
+长期沿用同一套，默认值直接可用；如果哪个版本改了，用 `kdf_hook.py` 抓出来写进 `config.json`
+的 `cipher` 字段，不用改代码。
 
 ## 演示
 
-以下输出取自**合成数据**（示例项目组 / 阿澈 / 小满 均为虚构，非真实聊天记录）：
+下面的输出来自合成数据，示例项目组、阿澈、小满都是虚构的，不是真实聊天记录。
 
 ```console
 $ qq sessions -n 5
@@ -60,36 +53,32 @@ $ qq search 分享会
 共 1 条
 ```
 
-## 安装与入口
+## 安装
 
-- 入口：`~/.local/bin/qq`（软链 → `~/.agents/bin/qq` → `python -m qqcli`）
-- 源码根目录即 Python 包根：`qqcli/` 为包，`tests/` 为回归测试
-- 零第三方依赖（标准库 + `sqlcipher` CLI）
-
-推荐用 pip 安装（由 `pyproject.toml` 生成 `qq` 命令，免手配 PYTHONPATH）：
+推荐用 pip 装，`pyproject.toml` 会生成 `qq` 命令，不用自己配 PYTHONPATH：
 
 ```bash
 pip install -e .        # 或 pipx install .
 qq version
 ```
 
-也可不安装，直接用启动器或模块方式运行：
+不想装也行，用启动器或直接跑包：
 
 ```bash
 QQ="$HOME/.local/bin/qq"                 # 软链 -> python -m qqcli
-PYTHONPATH=. python3 -m qqcli sessions   # 在仓库根目录直接跑包
+PYTHONPATH=. python3 -m qqcli sessions   # 在仓库根目录直接跑
 ```
 
-> 注意：`~/.local/bin` 常不在会话 PATH，脚本里请用 `~/.local/bin/qq`（或绝对路径）。
+仓库根目录就是 Python 包根：`qqcli/` 是包，`tests/` 是回归测试。`~/.local/bin` 往往不在
+会话的 PATH 里，脚本里写 `~/.local/bin/qq` 或绝对路径。
 
-## 作为 Agent 技能使用
+## 当 agent skill 用
 
-本仓库目录本身就是一个合法的 agent 技能目录——根目录的 `SKILL.md` 即技能说明
-（命令速查、字段语义、SQL 片段、踩坑清单），全部用 `$HOME`/相对路径书写，无机器相关信息。
+这个仓库目录本身就是一个合法的技能目录，根目录的 `SKILL.md` 是技能说明，里面是命令速查、
+字段语义、SQL 片段和踩坑清单，全部用 `$HOME` 和相对路径写，不含任何机器相关信息。
 
-- 要让 agent 识别，把本目录（或其软链）放到技能目录下，例如
-  `~/.workbuddy/skills/qq-cli`、`~/.claude/skills/qq-cli`；
-- 只共享文档时，单独分发 `SKILL.md` 也行。
+要让 Agent 认出来，把本目录（或它的软链）放进技能目录，例如 `~/.workbuddy/skills/qq-cli`
+或 `~/.claude/skills/qq-cli`。只分享文档的话，单独发 `SKILL.md` 也可以。
 
 ## 命令
 
@@ -108,18 +97,19 @@ qq doctor                          # 环境诊断
 qq version
 ```
 
-全局 `--json` 输出机器可读结果。`<目标>` 支持 群号 / QQ 号 / uid（`u_` 开头）/ 名称模糊匹配。
+`--json` 是全局参数，加上就输出机器可读结果。`<目标>` 可以是群号、QQ 号、uid（`u_` 开头）
+或名称的一部分。
 
-### 退出码（agent 契约）
+退出码固定四个，方便 Agent 判断：
 
 | 码 | 含义 |
 |----|------|
 | 0 | 成功 |
-| 1 | 一般错误（参数 / 无法解析目标 / 日期格式） |
+| 1 | 一般错误（参数不对、目标解析不了、日期格式错） |
 | 2 | 需要授权（解密） |
-| 3 | 环境未就绪（明文库缺失，需先 `qq sync`） |
+| 3 | 环境未就绪（明文库缺失，先跑 `qq sync`） |
 
-## 架构
+## 代码结构
 
 ```
 qqcli/
@@ -133,21 +123,23 @@ qqcli/
   cli.py        argparse 子命令 + --json + 退出码
 ```
 
-分层原则：`db` 只出数据类，`formatting` 只做排版，`segment` 只做解析，互不越界。
+分层比较严：`db` 只出数据类，`formatting` 只管排版，`segment` 只做解析，互相不越界。
 
-## 列语义（nt_msg.db 字段 ID，跨 NT 版本稳定）
+## 字段语义
+
+nt_msg.db 用的是数字列名，下面是几个关键字段。这些 ID 跨 NT 版本稳定。
 
 | 列 | 含义 |
 |----|------|
 | `[40050]` | 时间戳（秒） |
-| `[40020]` | 发送者 uid —— **判断本人靠它**（== self_uid） |
-| `[40090]` | 发送者群名片（群消息约 40% 为空，需回退 `group_member3`） |
-| `[40021]` | 群表里是群号；c2c 表里是对方 uid |
-| `[40030]` | 群号（群表）/ 对方 QQ 号（c2c） |
-| `[40009]` | 常量标志，**不是**"本人发送"，勿据此判方向 |
+| `[40020]` | 发送者 uid，判断是不是本人就看它（和 self_uid 比较） |
+| `[40090]` | 发送者群名片，群消息里约 40% 为空，需回退 `group_member3` |
+| `[40021]` | 群表里是群号，c2c 表里是对方 uid |
+| `[40030]` | 群号（群表）或对方 QQ 号（c2c 表） |
+| `[40009]` | 常量标志，与是否本人发送无关，不要拿它判方向 |
 | `[40800]` | 正文 protobuf blob |
 
-> 明文库存在解密残留的 `[40050]=0` 占位行；所有查询已内建过滤。
+明文库里有解密残留的 `[40050]=0` 占位行，查询已经内建过滤。
 
 ## 测试
 
@@ -155,28 +147,31 @@ qqcli/
 ./tests/run_tests.sh          # 单元 + 集成（真实库存在时自动跑）
 ```
 
-- 单元：protobuf 分段、噪声/富文本处理、名称解析、排版对齐、查询层（临时夹具库）
-- 集成：对真实明文库跑全量子命令，校验退出码/JSON 契约/无 1970 脏行
+单元部分覆盖 protobuf 分段、噪声与富文本处理、名称解析、排版对齐、查询层，用临时建的夹具库；
+集成部分对真实明文库跑一遍全部子命令，校验退出码、JSON 契约，以及输出里没有 1970 的脏行。
 
 ## 密钥与隐私
 
-- **passphrase / db_key 只存本机，绝不入库**：`~/.qqmac/config.json`、`passphrase.txt`、
-  `db_key.txt` 均已列入 `.gitignore`。首次使用需在本机跑 `extract_key.sh` 自行提取，
-  本仓库不含任何密钥。
-- 只读本地数据；导出文件含隐私，放用户指定位置
-- key 失效或换 QQ 版本 → 重跑 `extract_key.sh`（需 lldb + 关闭 SIP 调试保护，见「前置条件」）
+passphrase 和 db_key 只留在本机，绝不入库。`~/.qqmac/config.json`、`passphrase.txt`、
+`db_key.txt` 都在 `.gitignore` 里。首次使用要在本机跑 `extract_key.sh` 自己提取，仓库里不含
+任何密钥。
 
-## 发布前检查
+程序只读本地数据，导出的文件含隐私，放在自己指定的位置。key 失效或者换了 QQ 版本，重跑
+`extract_key.sh`，同样需要 lldb 和关闭 SIP 调试保护。
 
-提交/发布前跑一次安全自查，确认没有把个人路径或密钥带上：
+## 发布前自查
+
+提交或发布前跑一次，确认没把个人路径和密钥带进去：
 
 ```bash
 ./scripts/check_publish_safe.sh
 ```
 
-无输出即通过（脚本会列出所有疑似泄露项）。
+没有输出就是通过，有疑似项脚本会逐条列出来。
 
-## 密钥提取链（一次性）
+## 密钥提取
+
+三个脚本配合使用，只需跑一次：
 
 - `find_key_func.py` / `precise_locate.py`：静态定位 `nt_sqlite3_key_v2`
 - `getkey_helper.py` + lldb spawn：自动抓 key
@@ -184,16 +179,17 @@ qqcli/
 
 ## 免责声明
 
-- **仅限本人设备与本人账号数据**。本工具用于读取**你自己**设备上**你自己**的 QQ 聊天记录，
-  请勿用于获取、监控或分析他人的数据。
-- **非官方项目**。本项目与腾讯公司无任何关联，未获其授权或认可；QQ 及相关商标归腾讯所有。
-- **合规与法律责任由使用者承担**。使用须遵守你所在地区的法律法规及 QQ 用户协议。请勿将导出的
-  聊天记录用于侵犯他人隐私、骚扰、诽谤或牟利；他人聊天内容同样受隐私法（如《个人信息保护法》）保护，
-  转发或公开需谨慎。
-- **关闭 SIP 有安全代价**。提取密钥需临时关闭 macOS 的 SIP 调试保护，该窗口期内系统安全性下降，
-  请在可信环境下操作，用完及时恢复。
-- **数据不出本机**。全部处理在本地完成，无网络上传、无遥测；但导出文件由你自行保管。
-- **按现状提供**。软件依 MIT 协议以"现状"提供，不附带任何明示或默示担保，使用后果由使用者自负。
+本工具只用于读取使用者本人设备上、本人账号的 QQ 聊天记录，不得用于获取、监控或分析他人的数据。
+
+本项目是非官方项目，与腾讯公司没有关联，也未获其授权或认可，QQ 及相关商标归腾讯所有。
+
+使用本工具须遵守所在地的法律法规和 QQ 用户协议。导出的聊天记录包含他人隐私，受《个人信息
+保护法》等法规约束，转发或公开前请自行确认合法性。因使用本工具产生的合规与法律责任由使用者承担。
+
+提取密钥需要临时关闭 macOS 的 SIP 调试保护，这段时间系统防护会下降，请在可信环境中操作，
+用完及时恢复。全部处理都在本地完成，没有网络上传也没有遥测，导出文件由使用者自行保管。
+
+软件依 MIT 协议按现状提供，不附带任何明示或默示担保。
 
 ## 许可证
 
