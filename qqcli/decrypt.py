@@ -8,6 +8,7 @@ QQ NT 长期稳定的默认参数；若某版本改动，用 kdf_hook.py 抓取�
 """
 
 import os
+import sqlite3
 import subprocess
 
 from .config import (CIPHER_DEFAULTS, WANT_DBS, find_account_dirs,
@@ -31,32 +32,52 @@ def build_pragmas(cipher=None):
     )
 
 
+def _looks_like_sqlite(path):
+    """轻量校验：文件头能否作为 SQLite 打开。"""
+    try:
+        con = sqlite3.connect("file:%s?mode=ro" % path, uri=True)
+        con.execute("PRAGMA schema_version").fetchone()
+        con.close()
+        return True
+    except sqlite3.Error:
+        return False
+
+
 def decrypt_db(src, dst, passphrase, sqlcipher=None, pragmas=None):
-    """剥头 -> sqlcipher_export 明文。返回 dst。"""
+    """剥头 -> sqlcipher_export 明文，原子替换 dst。返回 dst。
+
+    先导出到临时文件并校验，成功后才替换 dst；失败时保留原有明文库，
+    因此可以安全地被反复调用（Agent 可随时 sync 刷新）。
+    """
     sqlcipher = sqlcipher or find_sqlcipher()
     if not sqlcipher:
         raise QqcliError("未找到 sqlcipher", hint="brew install sqlcipher")
     with open(src, "rb") as f:
         f.seek(HEADER_BYTES)
         data = f.read()
-    tmp = dst + ".clean.tmp"
-    with open(tmp, "wb") as f:
+    stripped = dst + ".clean.tmp"
+    exported = dst + ".new"
+    for p in (stripped, exported):
+        if os.path.exists(p):
+            os.remove(p)
+    with open(stripped, "wb") as f:
         f.write(data)
-    if os.path.exists(dst):
-        os.remove(dst)
     sql = (
         "PRAGMA key='%s';" % passphrase
         + (pragmas if pragmas is not None else build_pragmas())
-        + "ATTACH DATABASE '%s' AS plain KEY '';" % dst
+        + "ATTACH DATABASE '%s' AS plain KEY '';" % exported
         + "SELECT sqlcipher_export('plain');DETACH plain;"
     )
     try:
-        r = subprocess.run([sqlcipher, tmp, sql], capture_output=True, text=True, timeout=300)
+        r = subprocess.run([sqlcipher, stripped, sql], capture_output=True, text=True, timeout=300)
     finally:
-        if os.path.exists(tmp):
-            os.remove(tmp)
-    if not os.path.exists(dst):
+        if os.path.exists(stripped):
+            os.remove(stripped)
+    if r.returncode != 0 or not _looks_like_sqlite(exported):
+        if os.path.exists(exported):
+            os.remove(exported)
         raise QqcliError("解密失败: %s %s" % (r.stdout[-200:], r.stderr[-200:]))
+    os.replace(exported, dst)
     return dst
 
 

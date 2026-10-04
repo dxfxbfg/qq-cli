@@ -39,7 +39,7 @@ $QQ sessions
 PYTHONPATH=. python3 -m qqcli sessions
 ```
 
-数据要最新：先 `$QQ sync`（QQ 运行中也行，重新解密覆盖明文缓存，约 5 秒）。
+数据要最新：先 `$QQ sync`（QQ 运行中也行，重新解密覆盖明文缓存，实测 1 秒内，可反复调用）。
 
 ## 命令
 

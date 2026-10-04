@@ -48,6 +48,13 @@ The one step that does touch the QQ process is the initial key extraction: it qu
 relaunches it under lldb to capture the passphrase. That happens once, and afterwards queries do not
 need QQ running at all.
 
+For agents there is a further difference: a command line with `--json` and fixed exit codes is
+already an interface designed to be called by a program rather than typed by a person. `qq sync`
+was measured at under a second with QQ running, and it exports to a temporary file first, validates
+it, then replaces the old database atomically — so a failure never destroys what is already there.
+An agent can therefore sync before each query and read the latest records, without exporting ahead
+of time or asking QQ to quit.
+
 ## Demo
 
 The output below comes from synthetic data. The group and the names in it are made up, not real
@@ -114,7 +121,7 @@ To make an agent pick it up, put this directory (or a symlink to it) under a ski
 ## Commands
 
 ```bash
-qq sync                            # re-decrypt and export the plain databases (works while QQ runs)
+qq sync                            # re-decrypt and export the plain databases (works while QQ runs, under 1s)
 qq init                            # discover account dirs, show database status
 qq sessions [-n 20] [--kind group|c2c|all]         # session list
 qq history <target> [-n N] [--offset N] [--since D] [--until D] [--msg-type T]
