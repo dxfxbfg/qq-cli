@@ -1,4 +1,6 @@
-# qqcli — macOS 本机 QQ 记录读取（Agent 技能 / CLI）
+# qq-cli — macOS 本机 QQ 记录读取（Agent 技能 / CLI）
+
+**简体中文** · [English](README.en.md)
 
 给 **AI Agent** 用的本机 QQ 信息获取能力：读取 macOS 版 QQ NT 的本地数据库
 （`nt_qq_<hash>/nt_db/nt_msg.db`，SQLCipher），解密为明文 SQLite 后即可搜索、
