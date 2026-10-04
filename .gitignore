@@ -1,0 +1,30 @@
+# ── 敏感：解密口令与密钥，绝对不要提交 ──
+passphrase.txt
+db_key.txt
+config.json
+
+# ── 数据库（明文/导出的聊天记录含隐私）──
+*.db
+*.sqlite
+plain/
+
+# ── 键提取过程的临时产物 ──
+key_result*.txt
+memscan*
+try_matrix*
+hook.log
+va_cache.txt
+kdf_attach.txt
+kdf_calls.txt
+schema_ref.rs
+
+# ── Python ──
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# ── 系统 / 编辑器 ──
+.DS_Store
+.idea/
+.vscode/
