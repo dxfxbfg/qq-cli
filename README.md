@@ -36,6 +36,20 @@ SIP 调试开关，Windows 走不通。
 - 源码根目录即 Python 包根：`qqcli/` 为包，`tests/` 为回归测试
 - 零第三方依赖（标准库 + `sqlcipher` CLI）
 
+推荐用 pip 安装（由 `pyproject.toml` 生成 `qq` 命令，免手配 PYTHONPATH）：
+
+```bash
+pip install -e .        # 或 pipx install .
+qq version
+```
+
+也可不安装，直接用启动器或模块方式运行：
+
+```bash
+QQ="$HOME/.local/bin/qq"                 # 软链 -> python -m qqcli
+PYTHONPATH=. python3 -m qqcli sessions   # 在仓库根目录直接跑包
+```
+
 > 注意：`~/.local/bin` 常不在会话 PATH，脚本里请用 `~/.local/bin/qq`（或绝对路径）。
 
 ## 作为 Agent 技能使用
@@ -137,3 +151,7 @@ qqcli/
 - `find_key_func.py` / `precise_locate.py`：静态定位 `nt_sqlite3_key_v2`
 - `getkey_helper.py` + lldb spawn：自动抓 key
 - `kdf_hook.py`：断点 `PKCS5_PBKDF2_HMAC` 抓真正的 SQLCipher passphrase
+
+## 许可证
+
+[MIT](LICENSE)。设计参考 [2233admin/qqcli-rs](https://github.com/2233admin/qqcli-rs)（MIT）。
