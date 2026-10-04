@@ -35,25 +35,22 @@ of `config.json`. No code change needed.
 
 ## How this differs from other tools
 
-Frameworks like NapCat take the bot route: they run a separate QQ account, usually headless, and
-that account carries the login conflicts, risk-control and ban risk. This project does the opposite.
-It takes over no login and never talks to QQ's servers.
+Bot frameworks such as NapCat run a dedicated QQ account alongside, usually headless, and any login
+conflict or risk-control action lands on that account. This project takes over no login and never
+contacts QQ's servers.
 
-During queries it does one thing: read the plain database copy on disk. Connections are read-only
-(`mode=ro`), there is no network request anywhere in the code, and the only external call is the
-local `sqlcipher` command. QQ keeps logging in, sending and receiving as usual, and no extra account
-is needed.
+Queries read local files only. The databases are opened read-only (`mode=ro`), there is no network
+request anywhere in the code, and the only external call is the local `sqlcipher` command. QQ
+carries on as usual, and no second account is needed.
 
-The one step that does touch the QQ process is the initial key extraction: it quits QQ and
-relaunches it under lldb to capture the passphrase. That happens once, and afterwards queries do not
-need QQ running at all.
+Key extraction is the only step that touches the QQ process: it quits QQ and relaunches it under
+lldb to read the passphrase. Once that is done, queries do not need QQ running.
 
-For agents there is a further difference: a command line with `--json` and fixed exit codes is
-already an interface designed to be called by a program rather than typed by a person. `qq sync`
-was measured at under a second with QQ running, and it exports to a temporary file first, validates
-it, then replaces the old database atomically — so a failure never destroys what is already there.
-An agent can therefore sync before each query and read the latest records, without exporting ahead
-of time or asking QQ to quit.
+A command line, `--json` and fixed exit codes are an interface meant to be called by a program.
+`qq sync` was measured at under a second with QQ running; it writes the export to a temporary file
+and replaces the old database only after validation, so a failure never damages what is already
+there. An agent can sync before each query and read the current records, with nothing exported
+ahead of time and QQ left running.
 
 ## Demo
 
