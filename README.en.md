@@ -35,6 +35,38 @@ lldb and the SIP debug switch, neither of which exists on Windows.
 > Once the key is captured and the plain database is exported, day-to-day queries no longer
 > need SIP disabled or lldb running.
 
+## Demo
+
+The output below comes from **synthetic data** (the group and people shown are made up —
+no real chat records):
+
+```console
+$ qq sessions -n 5
+类型  名称        会话 ID  条数  最后消息             预览
+私    老周        66001       1  2026-10-03 13:00:00  资料我已经发你邮箱了
+私    晓风        77001       2  2026-10-03 12:55:00  好，八点我上线
+群    示例项目组  88001       5  2026-10-03 12:50:00  我把文档放群文件了
+
+$ qq history 88001 -n 5
+=== 示例项目组 (group) 共 5 条 ===
+── 2026-10-03 ────────────────────────────────────────
+[12:10:00]   我: 我自己发的测试消息
+[12:20:00]   阿澈: 下周的分享会改到周四晚上八点
+[12:30:00]   小满: 收到，我把会议室也改一下
+[12:40:00]   阿澈: [图片]
+[12:50:00]   我: 我把文档放群文件了
+
+$ qq search 分享会
+[2026-10-03 12:20] 群 示例项目组  阿澈: 下周的分享会改到周四晚上八点
+
+共 1 条
+```
+
+The CLI output itself is Chinese (it targets Chinese QQ users), so the block above is verbatim.
+Column legend for the first table: `类型` = type (`私` c2c / `群` group), `条数` = message count,
+`最后消息` = last message time, `预览` = preview. In `history`/`search`, `我` means "me" and
+`[图片]` is the placeholder for an image message.
+
 ## Install and entry points
 
 - Entry point: `~/.local/bin/qq` (symlink → `~/.agents/bin/qq` → `python -m qqcli`)
